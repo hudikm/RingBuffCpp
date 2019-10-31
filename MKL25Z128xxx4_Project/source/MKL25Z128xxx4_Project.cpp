@@ -53,6 +53,7 @@
 #include "fsl_lpsci.h"
 //#include "RingBuffer.h"
 #include "RingBufferWrapper.h"
+#include "RingBufferWrapperTemplate.h"
 /* TODO: insert other include files here. */
 
 /* TODO: insert other definitions and declarations here. */
@@ -68,8 +69,12 @@ uint8_t rxBufferData[100];
 uint8_t txBufferData[100];
 
 /* Setup RingBuffers */
-RingBufferWrapper<100> ringBuffRx();
-RingBufferWrapper<100> ringBuffTx();
+//RingBufferWrapper ringBuffRx(rxBufferData,sizeof(rxBufferData));
+//RingBufferWrapper ringBuffTx(txBufferData,sizeof(txBufferData));
+
+RingBufferWrapperTemplate<100> ringBuffRx;
+RingBufferWrapperTemplate<100> ringBuffTx;
+//RingBufferWrapperTemplate<100> ringBUffTemplate();
 
 /*******************************************************************************
  * Code
@@ -84,6 +89,7 @@ extern "C" void DEMO_LPSCI_IRQHandler(void) {
 		data = LPSCI_ReadByte(DEMO_LPSCI);
 		if (data == '\r' || data == '\n')
 			new_line_flag = true;
+
 		ringBuffRx.Write(&data, 1);
 //		RbufferWrite(&rxBuffer_handler, &data, 1);
 	}
