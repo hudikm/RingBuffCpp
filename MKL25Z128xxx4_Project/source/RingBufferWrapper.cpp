@@ -7,31 +7,51 @@
 
 #include <RingBufferWrapper.h>
 
-RingBufferWrapper::RingBufferWrapper(uint8_t *buf, size_t count) {
+RingBufferWrapper::RingBufferWrapper(uint8_t *buf, size_t count) :
+		dynamicBuffer(false) {
 	RbufferInit(&handler, buf, count);
 }
 
 RingBufferWrapper::~RingBufferWrapper() {
-	delete bufferData;
+	if (bufferData != nullptr && dynamicBuffer)
+		delete bufferData;
 }
-
-size_t RingBufferWrapper::Read(uint8_t* out, size_t count) {
+/**
+ * @param out Output buffer
+ * @param count size of output buffer
+ * @return Number of read bytes
+ */
+size_t RingBufferWrapper::read(uint8_t *out, size_t count) {
 	return RbufferRead(&handler, out, count);
 }
 
-size_t RingBufferWrapper::Write(const uint8_t* src, size_t count) {
+/**
+ * @param src Source buffer
+ * @param count size of source buffer
+ * @return Number of written bytes
+ */
+size_t RingBufferWrapper::write(const uint8_t *src, size_t count) {
 	return RbufferWrite(&handler, src, count);
 }
 
-size_t RingBufferWrapper::NumOfElements() {
+/**
+ *
+ * @return Number of elements in Ring Buffer
+ */
+size_t RingBufferWrapper::numOfElements() {
 	return RbufferNumOfElements(&handler);
 }
 
-RingBufferWrapper::RingBufferWrapper(size_t count) {
+RingBufferWrapper::RingBufferWrapper(size_t count) :
+		dynamicBuffer(true) {
 	bufferData = new uint8_t[count];
 	RbufferInit(&handler, bufferData, count);
 }
 
+/**
+ *
+ * @return True if buffer is full or it overflows
+ */
 bool RingBufferWrapper::IsFull() {
 	return RbufferIsFull(&handler);
 }

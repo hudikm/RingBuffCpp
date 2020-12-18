@@ -16,7 +16,7 @@ uint8_t * incrementAddress(buffer_t *buffer, uint8_t* ptr) {
 }
 
 bool RbufferIsFull(buffer_t *buffer) {
-//	return (incrementAddress(buffer, buffer->wPt) == buffer->rPt);
+
 	return buffer->count >= buffer->size;
 }
 

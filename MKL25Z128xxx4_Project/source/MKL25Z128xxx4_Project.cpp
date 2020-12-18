@@ -33,11 +33,11 @@
 /*******************************************************************************
  * Definitions
  ******************************************************************************/
-#define DEMO_LPSCI UART0
-#define DEMO_LPSCI_CLKSRC kCLOCK_CoreSysClk
-#define DEMO_LPSCI_CLK_FREQ CLOCK_GetFreq(kCLOCK_CoreSysClk)
-#define DEMO_LPSCI_IRQn UART0_IRQn
-#define DEMO_LPSCI_IRQHandler UART0_IRQHandler
+#define UART_LPSCI UART0
+#define UART_LPSCI_CLKSRC kCLOCK_CoreSysClk
+#define UART_LPSCI_CLK_FREQ CLOCK_GetPllFllSelClkFreq()
+#define UART_LPSCI_IRQn UART0_IRQn
+#define UART_LPSCI_IRQHandler UART0_IRQHandler
 
 /**
  * @file    MKL25Z128xxx4_Project.cpp
@@ -54,6 +54,7 @@
 //#include "RingBuffer.h"
 #include "RingBufferWrapper.h"
 #include "RingBufferWrapperTemplate.h"
+#include "etl/string.h"
 /* TODO: insert other include files here. */
 
 /* TODO: insert other definitions and declarations here. */
@@ -68,40 +69,41 @@ volatile bool new_line_flag = false;
 uint8_t rxBufferData[100];
 uint8_t txBufferData[100];
 
+using Demo_RingBuffer = RingBufferWrapperTemplate<100>;
+
 /* Setup RingBuffers */
 //RingBufferWrapper ringBuffRx(rxBufferData,sizeof(rxBufferData));
 //RingBufferWrapper ringBuffTx(txBufferData,sizeof(txBufferData));
 
-RingBufferWrapperTemplate<100> ringBuffRx;
-RingBufferWrapperTemplate<100> ringBuffTx;
-//RingBufferWrapperTemplate<100> ringBUffTemplate();
+Demo_RingBuffer ringBuffRx;
+Demo_RingBuffer ringBuffTx;
+
 
 /*******************************************************************************
  * Code
  ******************************************************************************/
 
-extern "C" void DEMO_LPSCI_IRQHandler(void) {
+extern "C" void UART_LPSCI_IRQHandler(void) {
 
 	uint8_t data;
 
 	/* If new data arrived. */
-	if ((kLPSCI_RxDataRegFullFlag) & LPSCI_GetStatusFlags(DEMO_LPSCI)) {
-		data = LPSCI_ReadByte(DEMO_LPSCI);
+	if ((kLPSCI_RxDataRegFullFlag) & LPSCI_GetStatusFlags(UART_LPSCI)) {
+		data = LPSCI_ReadByte(UART_LPSCI);
 		if (data == '\r' || data == '\n')
 			new_line_flag = true;
+		/* Echo */
+		ringBuffRx.write(&data, 1);
 
-		ringBuffRx.Write(&data, 1);
-//		RbufferWrite(&rxBuffer_handler, &data, 1);
 	}
 	/*If there are data to send*/
-	if ((kLPSCI_TxDataRegEmptyFlag & LPSCI_GetStatusFlags(DEMO_LPSCI))) {
-		ringBuffTx.Read(&data, 1);
-//		RbufferRead(&txBuffer_handler, &data, 1);
-		LPSCI_WriteByte(DEMO_LPSCI, data);
+	if ((kLPSCI_TxDataRegEmptyFlag & LPSCI_GetStatusFlags(UART_LPSCI))) {
+		ringBuffTx.read(&data, 1);
+		LPSCI_WriteByte(UART_LPSCI, data);
 
 		/* Disable TX interrupt If there are NO data to send */
-		if (ringBuffTx.NumOfElements() == 0)
-			LPSCI_DisableInterrupts(DEMO_LPSCI,
+		if (ringBuffTx.numOfElements() == 0)
+			LPSCI_DisableInterrupts(UART_LPSCI,
 					kLPSCI_TxDataRegEmptyInterruptEnable);
 	}
 
@@ -133,18 +135,16 @@ int main(void) {
 	config.enableTx = true;
 	config.enableRx = true;
 
-	LPSCI_Init(DEMO_LPSCI, &config, DEMO_LPSCI_CLK_FREQ);
+	LPSCI_Init(UART_LPSCI, &config, UART_LPSCI_CLK_FREQ);
 
 	/* Send g_tipString out. */
-	LPSCI_WriteBlocking(DEMO_LPSCI, g_tipString,
+	LPSCI_WriteBlocking(UART_LPSCI, g_tipString,
 			sizeof(g_tipString) / sizeof(g_tipString[0]));
 
-
-
 	/* Enable RX interrupt. */
-	LPSCI_EnableInterrupts(DEMO_LPSCI, kLPSCI_RxDataRegFullInterruptEnable);
-	EnableIRQ(DEMO_LPSCI_IRQn);
-
+	LPSCI_EnableInterrupts(UART_LPSCI, kLPSCI_RxDataRegFullInterruptEnable);
+	EnableIRQ(UART_LPSCI_IRQn);
+	PRINTF("DEMO LPSCI TEST");
 	while (1) {
 
 		// Wait for new line
@@ -153,18 +153,19 @@ int main(void) {
 
 		new_line_flag = false; /* Clear new line flag */
 
-		/* Copy data  from rxBuffer to txbuffer*/
-//		uint16_t count = RbufferNumOfElements(&rxBuffer_handler);
-		uint16_t count = ringBuffRx.NumOfElements();
+		/* Copy data  from rxBuffer to txbuffer */
+		uint16_t count = ringBuffRx.numOfElements();
 
 		uint8_t buffer[count];
-		ringBuffRx.Read( buffer, count);
-//		RbufferRead(&rxBuffer_handler, buffer, count);
+		ringBuffRx.read( buffer, count);
+
+
+		etl::string<20> outPutText("\n\rOutput:\n\r");
+		ringBuffTx.write(outPutText.c_str(),outPutText.length());
 
 		/* Write new line to txHandler and enable Tx interrupt*/
-		ringBuffTx.Write(buffer, count);
-//		RbufferWrite(&txBuffer_handler, buffer, count);
-		LPSCI_EnableInterrupts(DEMO_LPSCI,
+		ringBuffTx.write(buffer, count);
+		LPSCI_EnableInterrupts(UART_LPSCI,
 				kLPSCI_TxDataRegEmptyInterruptEnable);
 	}
 }
